@@ -436,8 +436,8 @@ body::before{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;
 var USER_PASSWORD='1809';
 var ADMIN_PASSWORD='admin2027';
 var VANYA_PASSWORD='vanya2027';
-var _gt1='ghp_FGoGR4sJHPgrw5';
-var _gt2='VdexeDZduV4VhH7V2KjAKZ';
+var _gt1='ghp_WD7yJqPYWKWIlP0n';
+var _gt2='Ajc6h8OigxT6l52M2q4Q';
 var GITHUB_TOKEN=_gt1+_gt2;
 var GITHUB_REPO='daria123-321/mrazi';
 var GITHUB_BRANCH='main';
@@ -534,7 +534,7 @@ var DEFAULT_DATA={
 };
 
 var appData=null;
-function loadAppData(){var raw=storeGet('appData',null);var merged=JSON.parse(JSON.stringify(DEFAULT_DATA));if(raw){try{var p=JSON.parse(raw);for(var k in p){if(p[k]===null||p[k]===undefined)continue;if(Array.isArray(p[k]))merged[k]=p[k];else if(typeof p[k]==='object'&&!Array.isArray(p[k])&&merged[k]){for(var kk in p[k])merged[k][kk]=p[k][kk];}else merged[k]=p[k];}}catch(e){}}return merged;}
+function loadAppData(){var raw=storeGet('appData',null);var merged=JSON.parse(JSON.stringify(DEFAULT_DATA));if(raw){try{var p=JSON.parse(raw);for(var k in p){if(p[k]===null||p[k]===undefined)continue;if(Array.isArray(p[k]))merged[k]=p[k];else if(typeof p[k]==='object'&&!Array.isArray(p[k])&&merged[k]){for(var kk in p[k])merged[k][kk]=p[k][kk];}else merged[k]=p[k];}}catch(e){}}return merged;}appData=loadAppData();
 function saveAppData(){try{storeSet('appData',JSON.stringify(appData));saveToGitHub();return true;}catch(e){return false;}}
 
 function parseDate(str){var p=str.split('-');return new Date(parseInt(p[0],10),parseInt(p[1],10)-1,parseInt(p[2],10));}
