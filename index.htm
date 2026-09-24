@@ -435,6 +435,11 @@ body::before{content:'';position:fixed;inset:0;z-index:9998;pointer-events:none;
 <input type="file" id="importFileInput" accept=".json,application/json" style="display:none"><script>
 var USER_PASSWORD='1809';
 var ADMIN_PASSWORD='admin2027';
+var VANYA_PASSWORD='vanya2027';
+var GITHUB_TOKEN='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';
+var GITHUB_REPO='daria123-321/mrazi';
+var GITHUB_BRANCH='main';
+var GITHUB_API='https://api.github.com/repos/'+GITHUB_REPO+'/contents/';
 var isAdmin=false;
 var timeOffset=0;
 var memStore={};
@@ -528,8 +533,7 @@ var DEFAULT_DATA={
 
 var appData=null;
 function loadAppData(){var raw=storeGet('appData',null);var merged=JSON.parse(JSON.stringify(DEFAULT_DATA));if(raw){try{var p=JSON.parse(raw);for(var k in p){if(p[k]===null||p[k]===undefined)continue;if(Array.isArray(p[k]))merged[k]=p[k];else if(typeof p[k]==='object'&&!Array.isArray(p[k])&&merged[k]){for(var kk in p[k])merged[k][kk]=p[k][kk];}else merged[k]=p[k];}}catch(e){}}return merged;}
-function saveAppData(){try{storeSet('appData',JSON.stringify(appData));return true;}catch(e){return false;}}
-appData=loadAppData();
+function saveAppData(){try{storeSet('appData',JSON.stringify(appData));saveToGitHub();return true;}catch(e){return false;}}
 
 function parseDate(str){var p=str.split('-');return new Date(parseInt(p[0],10),parseInt(p[1],10)-1,parseInt(p[2],10));}
 var startDate,returnDate,serviceStartDate;
@@ -590,8 +594,73 @@ function toggleTheme(){var html=document.documentElement,btn=document.getElement
 function toggleDrawer(){document.getElementById('drawer').classList.toggle('active');document.getElementById('drawer-overlay').classList.toggle('active');}
 function closeDrawer(){document.getElementById('drawer').classList.remove('active');document.getElementById('drawer-overlay').classList.remove('active');}
 function openCurtains(){var o=document.getElementById('curtain-overlay');o.classList.add('open');setTimeout(function(){o.classList.remove('active');o.style.display='none';},1500);}
-
-function checkEntry(){var pwd=document.getElementById('entry-password').value.trim().toLowerCase();var err=document.getElementById('entry-error');if(pwd===USER_PASSWORD||pwd===ADMIN_PASSWORD){if(pwd===ADMIN_PASSWORD)setAdmin(true);else setAdmin(false);enterSite();}else{err.textContent='Неверный пароль.';}}
+function b64Encode(str){return btoa(unescape(encodeURIComponent(str)));}
+function b64Decode(str){return decodeURIComponent(escape(atob(str)));}
+function ghGetFile(path,cb){
+    fetch(GITHUB_API+path+'?ref='+GITHUB_BRANCH,{headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json'}})
+        .then(function(r){if(r.status===404){cb(null,null);return null;}return r.json();})
+        .then(function(d){if(d&&d.content){cb(b64Decode(d.content),d.sha);}else if(d){cb(null,null);}})
+        .catch(function(){cb(null,null);});
+}
+function ghPutFile(path,content,sha,isBase64,cb){
+    var body={message:'sync '+path+' '+new Date().toISOString(),branch:GITHUB_BRANCH,content:isBase64?content:b64Encode(content)};
+    if(sha)body.sha=sha;
+    fetch(GITHUB_API+path,{method:'PUT',headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){if(cb)cb(r.ok);})
+        .catch(function(){if(cb)cb(false);});
+}
+function loadFromGitHub(cb){
+    ghGetFile('data.json',function(text,sha){
+        if(text){
+            try{
+                var remote=JSON.parse(text);
+                for(var k in remote){
+                    if(remote[k]===null||remote[k]===undefined)continue;
+                    if(Array.isArray(remote[k]))appData[k]=remote[k];
+                    else if(typeof remote[k]==='object'&&!Array.isArray(remote[k])&&appData[k]){
+                        for(var kk in remote[k])appData[k][kk]=remote[k][kk];
+                    }else appData[k]=remote[k];
+                }
+                window._dataSha=sha;
+                if(cb)cb(true);
+                return;
+            }catch(e){}
+        }
+        if(cb)cb(false);
+    });
+}
+function saveToGitHub(){
+    var payload=JSON.stringify(appData);
+    ghGetFile('data.json',function(text,sha){
+        ghPutFile('data.json',payload,sha||window._dataSha,false,function(ok){
+            if(ok)showToast('☁️ Синхронизировано');
+            else showToast('⚠️ Ошибка синхронизации');
+        });
+    });
+}
+function uploadPhotoToGitHub(slot,dataUrl){
+    var base64=dataUrl.split(',')[1];
+    var path='images/photo-'+slot+'.jpg';
+    ghGetFile(path,function(text,sha){
+        ghPutFile(path,base64,sha,true,function(ok){
+            if(ok)showToast('☁️ Фото сохранено');
+            else showToast('⚠️ Ошибка фото');
+        });
+    });
+}
+function loadPhotoFromGitHub(slot,cb){
+    var path='images/photo-'+slot+'.jpg';
+    var url='https://raw.githubusercontent.com/'+GITHUB_REPO+'/'+GITHUB_BRANCH+'/'+path+'?t='+Date.now();
+    cb(url);
+}
+function checkEntry(){
+    var pwd=document.getElementById('entry-password').value.trim().toLowerCase();
+    var err=document.getElementById('entry-error');
+    if(pwd===ADMIN_PASSWORD){setAdmin(true);enterSite();}
+    else if(pwd===VANYA_PASSWORD){setAdmin(false);window._isVanya=true;enterSite();}
+    else if(pwd===USER_PASSWORD){setAdmin(false);enterSite();}
+    else{err.textContent='Неверный пароль.';}
+}
 document.getElementById('entry-password').addEventListener('keypress',function(e){if(e.key==='Enter')checkEntry();});
 
 var siteIntervalsStarted=false;
@@ -599,6 +668,11 @@ function enterSite(){
     document.getElementById('entry-lock').style.display='none';
     document.getElementById('main-site').style.display='block';
     updateTimers();updateHugSeconds();updateHugPromise();updateThoughts();renderHeatmap();
+        showToast('☁️ Загрузка...');
+    loadFromGitHub(function(ok){
+        if(ok){applyDates();updateTimers();updateHugSeconds();renderHeatmap();renderChatLetter();showToast('✓ Данные загружены');}
+        else{showToast('✓ Локальные данные');}
+    });
     if(!siteIntervalsStarted){siteIntervalsStarted=true;setInterval(updateTimers,60000);setInterval(updateHugSeconds,1000);setInterval(checkAutoSeason,3600000);}
     setTimeout(revealSections,300);
     var o=document.getElementById('curtain-overlay');
@@ -850,10 +924,87 @@ function renderCalendar(){var title=document.getElementById('calendar-title');va
 var currentPhotoSlot=null;
 function loadGallery(){refreshAllPhotoBatches();}
 function refreshAllPhotoBatches(){var s=[['batch-he-1',['he1','he2','he3']],['batch-her-1',['her1','her2','her3']],['batch-us-1',['us1','us2','us3']]];for(var i=0;i<s.length;i++){if(document.getElementById(s[i][0]))renderPhotoBatch(s[i][0],s[i][1]);}}
-function renderPhotoBatch(containerId,slots){var c=document.getElementById(containerId);if(!c)return;c.innerHTML='';for(var i=0;i<slots.length;i++){(function(slot){var saved=appData.photos&&appData.photos[slot];var wrap=document.createElement('div');wrap.style.position='relative';wrap.style.width='100%';var item=document.createElement('div');item.className='photo-item editable';if(saved){var img=document.createElement('img');img.src=saved;item.appendChild(img);var del=document.createElement('button');del.type='button';del.className='photo-del-btn';del.innerHTML='×';del.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();deletePhoto(slot);},true);del.addEventListener('pointerdown',function(e){e.stopPropagation();},true);del.addEventListener('mousedown',function(e){e.stopPropagation();},true);del.addEventListener('touchstart',function(e){e.stopPropagation();},true);wrap.appendChild(item);wrap.appendChild(del);}else{item.innerHTML='<div style="text-align:center;font-size:0.85rem;color:var(--text-soft);padding:20px">📷<br>Добавить</div>';wrap.appendChild(item);}item.addEventListener('click',function(e){if(e.target&&e.target.classList&&e.target.classList.contains('photo-del-btn'))return;pickPhoto(slot);});c.appendChild(wrap);})(slots[i]);}}
+function renderPhotoBatch(containerId,slots){
+    var c=document.getElementById(containerId);
+    if(!c)return;
+    c.innerHTML='';
+    for(var i=0;i<slots.length;i++){
+        (function(slot){
+            var wrap=document.createElement('div');
+            wrap.style.position='relative';
+            wrap.style.width='100%';
+            var item=document.createElement('div');
+            item.className='photo-item editable';
+            var remoteUrl='https://raw.githubusercontent.com/'+GITHUB_REPO+'/'+GITHUB_BRANCH+'/images/photo-'+slot+'.jpg?t='+Date.now();
+            var localSaved=appData.photos&&appData.photos[slot];
+            var img=document.createElement('img');
+            img.src=localSaved||remoteUrl;
+            img.onerror=function(){item.innerHTML='<div style="text-align:center;font-size:0.85rem;color:var(--text-soft);padding:20px">📷<br>Добавить</div>';};
+            item.appendChild(img);
+            item.addEventListener('click',function(e){
+                if(e.target&&e.target.classList&&e.target.classList.contains('photo-del-btn'))return;
+                pickPhoto(slot);
+            });
+            wrap.appendChild(item);
+            if(localSaved){
+                var del=document.createElement('button');
+                del.type='button';
+                del.className='photo-del-btn';
+                del.innerHTML='×';
+                del.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();deletePhoto(slot);},true);
+                wrap.appendChild(del);
+            }
+            c.appendChild(wrap);
+        })(slots[i]);
+    }
+}
+            img.src=localSaved||remoteUrl;
+            img.onerror=function(){item.innerHTML='<div style="text-align:center;font-size:0.85rem;color:var(--text-soft);padding:20px">📷<br>Добавить</div>';};
+            item.appendChild(img);
+            item.addEventListener('click',function(e){
+                if(e.target&&e.target.classList&&e.target.classList.contains('photo-del-btn'))return;
+                pickPhoto(slot);
+            });
+            wrap.appendChild(item);
+            if(localSaved){
+                var del=document.createElement('button');
+                del.type='button';
+                del.className='photo-del-btn';
+                del.innerHTML='×';
+                del.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();deletePhoto(slot);},true);
+                wrap.appendChild(del);
+            }
+            c.appendChild(wrap);
+        })(slots[i]);
+    }
+}
 function pickPhoto(slot){currentPhotoSlot=slot;var inp=document.getElementById('photoFileInput');if(!inp)return;inp.value='';inp.click();}
 document.addEventListener('change',function(e){if(e.target&&e.target.id==='photoFileInput'){var f=e.target.files&&e.target.files[0];if(!f)return;if(!f.type||f.type.indexOf('image/')!==0){alert('Не изображение');return;}compressAndSavePhoto(f,currentPhotoSlot);}});
-function compressAndSavePhoto(file,slot){if(!slot)return;var reader=new FileReader();reader.onload=function(ev){var img=new Image();img.onload=function(){var MAX=600,w=img.width,h=img.height;if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;var ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);var dataUrl;try{dataUrl=canvas.toDataURL('image/jpeg',0.72);}catch(e){alert('Ошибка');return;}if(!appData.photos)appData.photos={};appData.photos[slot]=dataUrl;if(!saveAppData()){alert('Нет места');delete appData.photos[slot];return;}refreshAllPhotoBatches();showToast('✓ Фото сохранено');};img.src=ev.target.result;};reader.readAsDataURL(file);}
+function compressAndSavePhoto(file,slot){
+    if(!slot)return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+        var img=new Image();
+        img.onload=function(){
+            var MAX=600,w=img.width,h=img.height;
+            if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+            var canvas=document.createElement('canvas');
+            canvas.width=w;canvas.height=h;
+            var ctx=canvas.getContext('2d');
+            ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+            ctx.drawImage(img,0,0,w,h);
+            var dataUrl=canvas.toDataURL('image/jpeg',0.72);
+            if(!appData.photos)appData.photos={};
+            appData.photos[slot]=dataUrl;
+            storeSet('appData',JSON.stringify(appData));
+            uploadPhotoToGitHub(slot,dataUrl);
+            refreshAllPhotoBatches();
+            showToast('📤 Загрузка фото...');
+        };
+        img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+}
 function deletePhoto(slot){if(!appData.photos)return;appData.photos[slot]=null;delete appData.photos[slot];saveAppData();refreshAllPhotoBatches();showToast('✓ Фото удалено');}
 
 var quizIndex=0,quizScore=0;
@@ -875,9 +1026,10 @@ function showToast(msg){var t=document.getElementById('toast');if(!t)return;t.te
 
 var editorTab='secret';
 var USER_ALLOWED_TABS=['secret','hisHistory','photos'];
+var VANYA_ALLOWED_TABS=['photos','hisHistory'];
 var ALL_TABS=[{id:'dates',label:'📅 Даты'},{id:'secret',label:'💌 Секретные'},{id:'chat',label:'💌 Письмо'},{id:'future',label:'💌 В будущее'},{id:'photos',label:'📸 Фото'},{id:'capsule',label:'🎁 Капсула'},{id:'fortune',label:'🔮 Фортуна'},{id:'history',label:'📖 История'},{id:'hisHistory',label:'📖 Его история'},{id:'army',label:'🎖️ Армия'},{id:'quiz',label:'📝 Экзамен'},{id:'hugs',label:'🤗 Обнимашки'},{id:'frequency',label:'📡 Частота'}];
-function openEditor(){if(!isAdmin&&USER_ALLOWED_TABS.indexOf(editorTab)===-1)editorTab='secret';renderEditorTabs();switchEditorTab(editorTab);}
-function renderEditorTabs(){var tabs=document.getElementById('editor-tabs');if(!tabs)return;tabs.innerHTML='';var list=isAdmin?ALL_TABS:ALL_TABS.filter(function(t){return USER_ALLOWED_TABS.indexOf(t.id)!==-1;});list.forEach(function(t){var b=document.createElement('button');b.className='editor-tab'+(t.id===editorTab?' active':'');b.textContent=t.label;b.onclick=function(){editorTab=t.id;renderEditorTabs();switchEditorTab(t.id);};tabs.appendChild(b);});}
+function openEditor(){if(!isAdmin&&!window._isVanya&&USER_ALLOWED_TABS.indexOf(editorTab)===-1)editorTab='secret';if(window._isVanya&&VANYA_ALLOWED_TABS.indexOf(editorTab)===-1)editorTab='photos';renderEditorTabs();switchEditorTab(editorTab);}
+function renderEditorTabs(){var tabs=document.getElementById('editor-tabs');if(!tabs)return;tabs.innerHTML='';var list;if(isAdmin)list=ALL_TABS;else if(window._isVanya)list=ALL_TABS.filter(function(t){return VANYA_ALLOWED_TABS.indexOf(t.id)!==-1;});else list=ALL_TABS.filter(function(t){return USER_ALLOWED_TABS.indexOf(t.id)!==-1;});list.forEach(function(t){var b=document.createElement('button');b.className='editor-tab'+(t.id===editorTab?' active':'');b.textContent=t.label;b.onclick=function(){editorTab=t.id;renderEditorTabs();switchEditorTab(t.id);};tabs.appendChild(b);});}
 function switchEditorTab(tab){if(!isAdmin&&USER_ALLOWED_TABS.indexOf(tab)===-1)tab='secret';editorTab=tab;var c=document.getElementById('editor-content');if(!c)return;var f={dates:editorDatesHTML,secret:editorSecretHTML,chat:editorChatHTML,future:editorFutureHTML,photos:editorPhotosHTML,capsule:editorCapsuleHTML,fortune:editorFortuneHTML,history:editorHistoryHTML,hisHistory:editorHisHistoryHTML,army:editorArmyHTML,quiz:editorQuizHTML,hugs:editorHugsHTML,frequency:editorFrequencyHTML};c.innerHTML=f[tab]?f[tab]():'';if(tab==='photos')refreshAllPhotoBatches();}
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function saveBar(label,fnName){return '<div class="editor-save"><button class="save-btn" onclick="'+fnName+'()">💾 '+(label||'Сохранить')+'</button><button class="cancel-btn" onclick="closeModal(\'editor-modal\')">Отмена</button></div>';}
