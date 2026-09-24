@@ -960,26 +960,7 @@ function renderPhotoBatch(containerId,slots){
         })(slots[i]);
     }
 }
-            img.src=localSaved||remoteUrl;
-            img.onerror=function(){item.innerHTML='<div style="text-align:center;font-size:0.85rem;color:var(--text-soft);padding:20px">📷<br>Добавить</div>';};
-            item.appendChild(img);
-            item.addEventListener('click',function(e){
-                if(e.target&&e.target.classList&&e.target.classList.contains('photo-del-btn'))return;
-                pickPhoto(slot);
-            });
-            wrap.appendChild(item);
-            if(localSaved){
-                var del=document.createElement('button');
-                del.type='button';
-                del.className='photo-del-btn';
-                del.innerHTML='×';
-                del.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();deletePhoto(slot);},true);
-                wrap.appendChild(del);
-            }
-            c.appendChild(wrap);
-        })(slots[i]);
-    }
-}
+
 function pickPhoto(slot){currentPhotoSlot=slot;var inp=document.getElementById('photoFileInput');if(!inp)return;inp.value='';inp.click();}
 document.addEventListener('change',function(e){if(e.target&&e.target.id==='photoFileInput'){var f=e.target.files&&e.target.files[0];if(!f)return;if(!f.type||f.type.indexOf('image/')!==0){alert('Не изображение');return;}compressAndSavePhoto(f,currentPhotoSlot);}});
 function compressAndSavePhoto(file,slot){
