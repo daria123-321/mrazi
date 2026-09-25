@@ -668,12 +668,21 @@ function saveToGitHub(){
 }
 function uploadPhotoToGitHub(slot,dataUrl){
   var base64=dataUrl.split(',')[1];
+  var oldFilename=appData.photos&&appData.photos[slot];
   var filename='photo-'+slot+'-'+Date.now()+'.jpg';
   var path='images/'+filename;
   var body={message:'upload '+path,branch:GITHUB_BRANCH,content:base64};
   fetch(GITHUB_API+path,{method:'PUT',headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){
       if(r.ok){
+        if(oldFilename&&String(oldFilename).indexOf('.jpg')!==-1){
+          var oldPath='images/'+oldFilename;
+          ghGetFile(oldPath,function(t,sha){
+            if(sha){
+              fetch(GITHUB_API+oldPath,{method:'DELETE',headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:'cleanup '+oldPath,branch:GITHUB_BRANCH,sha:sha})});
+            }
+          });
+        }
         if(!appData.photos)appData.photos={};
         appData.photos[slot]=filename;
         storeSet('appData',JSON.stringify(appData));
