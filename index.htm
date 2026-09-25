@@ -670,10 +670,17 @@ function uploadPhotoToGitHub(slot,dataUrl){
     var base64=dataUrl.split(',')[1];
     var path='images/photo-'+slot+'.jpg';
     ghGetFile(path,function(text,sha){
-        ghPutFile(path,base64,sha,true,function(ok){
-            if(ok)showToast('☁️ Фото сохранено');
-            else showToast('⚠️ Ошибка фото');
-        });
+        if(sha){
+            fetch(GITHUB_API+path,{method:'DELETE',headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:'reupload '+path,branch:GITHUB_BRANCH,sha:sha})})
+                .then(function(){
+                    ghPutFile(path,base64,null,true,function(ok){if(ok)showToast('☁️ Фото сохранено');else showToast('⚠️ Ошибка фото');});
+                })
+                .catch(function(){
+                    ghPutFile(path,base64,null,true,function(ok){if(ok)showToast('☁️ Фото сохранено');else showToast('⚠️ Ошибка фото');});
+                });
+        } else {
+            ghPutFile(path,base64,null,true,function(ok){if(ok)showToast('☁️ Фото сохранено');else showToast('⚠️ Ошибка фото');});
+        }
     });
 }
 function deletePhotoFromGitHub(slot,cb){
