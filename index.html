@@ -503,6 +503,7 @@ function setText(id,t){var e=document.getElementById(id);if(e)e.textContent=t;}
 
 var DEFAULT_DATA={
     dates:{start:'2025-09-18',serviceStart:'2026-06-20',return:'2027-06-20'},
+ candleOn:false,
     photos:{he1:null,he2:null,he3:null,her1:null,her2:null,her3:null,us1:null,us2:null,us3:null},
     secretMessages:{'0':"Понедельник. Начало новой недели, а я уже скучаю. Я люблю тебя.",'1':"Вторник. Я сегодня думала о том, как ты смеёшься. Это моё любимое воспоминание.",'2':"Среда. Половина недели позади. Ты справляешься, я горжусь тобой.",'3':"Четверг. Я сегодня перечитывала наши сообщения. Скорее бы обнять тебя.",'4':"Пятница. Конец недели. У меня тоже своя служба — ждать тебя.",'5':"Суббота. Я бы сейчас с тобой куда-нибудь поехала. На нашем «чертолёте».",'6':"Воскресенье. Тихий день. Думаю о тебе, о нас. Твоя КДС."},
     chatLetter:"Мой любимый солнышко. Когда я думаю о тебе, на душе становится тепло, и я чувствую твоё присутствие рядом, даже если ты далеко.\n\nВ тебе мне нравится всё: твоя улыбка, твоя забота, твой голос и чувство юмора. Ты делаешь меня счастливой просто тем, что ты есть.\n\nЯ очень сильно люблю тебя, солнышко. Мы справимся. Я жду тебя. ❤️",
@@ -724,8 +725,8 @@ function enterSite(){
     document.getElementById('main-site').style.display='block';
     updateTimers();updateHugSeconds();updateHugPromise();updateThoughts();renderHeatmap();
         showToast('☁️ Загрузка...');
-    loadFromGitHub(function(ok){
-        if(ok){applyDates();updateTimers();updateHugSeconds();renderHeatmap();renderChatLetter();showToast('✓ Данные загружены');}
+  loadFromGitHub(function(ok){
+        if(ok){applyDates();updateTimers();updateHugSeconds();renderHeatmap();renderChatLetter();if(appData.candleOn){document.getElementById('candleFlame').classList.add('on');document.getElementById('candleGlow').classList.add('on');document.getElementById('candleText').textContent='🕯 Свеча горит. Я думаю о тебе.';}else{document.getElementById('candleFlame').classList.remove('on');document.getElementById('candleGlow').classList.remove('on');document.getElementById('candleText').textContent='Нажми на свечу — зажги её за него';}showToast('✓ Данные загружены');}
         else{showToast('✓ Локальные данные');}
     });
     if(!siteIntervalsStarted){siteIntervalsStarted=true;setInterval(updateTimers,60000);setInterval(updateHugSeconds,1000);setInterval(checkAutoSeason,3600000);}
@@ -739,7 +740,20 @@ function updateThoughts(){var el=document.getElementById('thoughtCount');if(!el)
 function addThought(){var count=parseInt(storeGet('thoughts','0'),10)+1;storeSet('thoughts',String(count));updateThoughts();var el=document.getElementById('thoughtCount');if(el){el.style.transform='scale(1.4)';setTimeout(function(){el.style.transform='scale(1)';},200);}for(var i=0;i<3;i++){(function(idx){setTimeout(function(){var h=document.createElement('div');h.textContent=['💭','💕','💖'][idx%3];h.style.position='fixed';h.style.left=(30+Math.random()*20)+'%';h.style.top='20%';h.style.fontSize='1.8rem';h.style.zIndex='999';h.style.pointerEvents='none';h.style.transition='all 1.5s ease-out';document.body.appendChild(h);setTimeout(function(){h.style.transform='translateY(-80px) scale(1.4)';h.style.opacity='0';},20);setTimeout(function(){h.remove();},1600);},idx*100);})(i);}}
 function resetThoughts(){storeSet('thoughts','0');updateThoughts();alert('Сброшено');}
 var candleOn=false;
-function toggleCandle(){candleOn=!candleOn;var flame=document.getElementById('candleFlame'),glow=document.getElementById('candleGlow'),text=document.getElementById('candleText');if(candleOn){flame.classList.add('on');glow.classList.add('on');text.textContent='🕯 Свеча горит. Я думаю о тебе.';storeSet('candleOn','1');}else{flame.classList.remove('on');glow.classList.remove('on');text.textContent='Нажми на свечу — зажги её за него';storeSet('candleOn','0');}}
+function toggleCandle(){
+  var flame=document.getElementById('candleFlame'),glow=document.getElementById('candleGlow'),text=document.getElementById('candleText');
+  var newState=!appData.candleOn;
+  appData.candleOn=newState;
+  storeSet('candleOn',newState?'1':'0');
+  try{saveToGitHub();}catch(e){}
+  if(newState){
+    flame.classList.add('on');glow.classList.add('on');
+    text.textContent='🕯 Свеча горит. Я думаю о тебе.';
+  }else{
+    flame.classList.remove('on');glow.classList.remove('on');
+    text.textContent='Нажми на свечу — зажги её за него';
+  }
+}
 
 function renderHeatmap(){
     var grid=document.getElementById('mosaic');
@@ -1148,7 +1162,7 @@ function startMemory(){initMemory();}
         if(lastAuto!==auto){storeSet('seasonAuto',auto);currentSeason=auto;storeSet('season',auto);}
         else if(userSeason&&SEASONS[userSeason]){currentSeason=userSeason;}
         else{currentSeason=auto;storeSet('seasonAuto',auto);storeSet('season',auto);}
-        if(storeGet('candleOn','0')==='1'){candleOn=true;}
+       if(appData.candleOn){candleOn=true;}
     }catch(e){}
     document.documentElement.setAttribute('data-season',currentSeason);
     spawnLeaves();
@@ -1237,7 +1251,7 @@ function askNotifyPermission(){
 window.addEventListener('DOMContentLoaded',function(){
     updateTimers();updateHugSeconds();updateHugPromise();updateThoughts();
     applyAdminUI();renderChatLetter();
-    if(candleOn){document.getElementById('candleFlame').classList.add('on');document.getElementById('candleGlow').classList.add('on');document.getElementById('candleText').textContent='🕯 Свеча горит. Я думаю о тебе.';}
+   if(appData.candleOn){document.getElementById('candleFlame').classList.add('on');document.getElementById('candleGlow').classList.add('on');document.getElementById('candleText').textContent='🕯 Свеча горит. Я думаю о тебе.';}
     setTimeout(function(){
         if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(renderHeatmap,100);});}
         else{setTimeout(renderHeatmap,500);}
