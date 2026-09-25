@@ -676,6 +676,15 @@ function uploadPhotoToGitHub(slot,dataUrl){
         });
     });
 }
+function deletePhotoFromGitHub(slot,cb){
+    var path='images/photo-'+slot+'.jpg';
+    ghGetFile(path,function(text,sha){
+        if(!sha){if(cb)cb(false);return;}
+        fetch(GITHUB_API+path,{method:'DELETE',headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:'delete '+path,branch:GITHUB_BRANCH,sha:sha})})
+            .then(function(r){if(cb)cb(r.ok);})
+            .catch(function(){if(cb)cb(false);});
+    });
+}
 function loadPhotoFromGitHub(slot,cb){
     var path='images/photo-'+slot+'.jpg';
     var url='https://raw.githubusercontent.com/'+GITHUB_REPO+'/'+GITHUB_BRANCH+'/'+path+'?t='+Date.now();
@@ -1014,7 +1023,7 @@ function compressAndSavePhoto(file,slot){
     };
     reader.readAsDataURL(file);
 }
-function deletePhoto(slot){if(!appData.photos)return;appData.photos[slot]=null;delete appData.photos[slot];saveAppData();refreshAllPhotoBatches();showToast('✓ Фото удалено');}
+function deletePhoto(slot){if(!appData.photos)appData.photos={};delete appData.photos[slot];storeSet('appData',JSON.stringify(appData));showToast('🗑 Удаление...');deletePhotoFromGitHub(slot,function(ok){if(ok){showToast('✓ Фото удалено');}else{showToast('⚠️ Фото не было на GitHub');}setTimeout(function(){location.reload();},1000);});}
 
 var quizIndex=0,quizScore=0;
 function openQuiz(){quizIndex=0;quizScore=0;document.getElementById('quiz-modal').classList.add('active');renderQuiz();}
