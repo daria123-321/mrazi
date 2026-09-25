@@ -1048,10 +1048,9 @@ function deletePhoto(slot){
   delete appData.photos[slot];
   storeSet('appData',JSON.stringify(appData));
   saveToGitHub();
-  showToast('🗑 Удаление...');
-  setTimeout(function(){location.reload();},1500);
+  refreshAllPhotoBatches();
+  showToast('✓ Фото удалено');
 }
-
 var quizIndex=0,quizScore=0;
 function openQuiz(){quizIndex=0;quizScore=0;document.getElementById('quiz-modal').classList.add('active');renderQuiz();}
 function renderQuiz(){var content=document.getElementById('quiz-content'),result=document.getElementById('quiz-result');var q=appData.quiz;if(!q.length){content.innerHTML='<p>Вопросы не добавлены</p>';return;}if(quizIndex>=q.length){content.innerHTML='<h3 style="text-align:center">Результат: '+quizScore+' из '+q.length+'</h3>';result.textContent=quizScore===q.length?'Знаешь меня!':'Учи матчасть.';if(quizScore===q.length)fireConfetti();return;}var cur=q[quizIndex];content.innerHTML='<p style="font-size:1.1rem;margin-bottom:16px">'+cur.q+'</p>';for(var idx=0;idx<cur.options.length;idx++){(function(i){var btn=document.createElement('button');btn.className='modal-btn';btn.style.margin='5px';btn.textContent=cur.options[i];btn.onclick=function(){if(i===cur.correct)quizScore++;content.innerHTML='<p style="font-size:1rem;margin-bottom:16px">'+cur.q+'</p><p style="color:'+(i===cur.correct?'#6b6d4a':'var(--heart)')+';margin-top:10px">'+(i===cur.correct?'Правильно!':'Нет. Верно: '+cur.options[cur.correct])+'</p>';setTimeout(function(){quizIndex++;renderQuiz();},1500);};content.appendChild(btn);})(idx);}result.textContent='';}
